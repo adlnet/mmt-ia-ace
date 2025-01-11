@@ -1,13 +1,13 @@
 import hashlib
 import logging
+import xml.etree.ElementTree as ET
 from unittest.mock import patch
 
 import pandas as pd
-from ddt import data, ddt, unpack
-from django.test import tag
-
 from core.management.utils.xsr_client import (get_source_metadata_key_value,
                                               read_source_file)
+from ddt import data, ddt, unpack
+from django.test import tag
 
 from .test_setup import TestSetUp
 
@@ -25,8 +25,20 @@ class UtilsTests(TestSetUp):
         with patch('core.management.utils.xsr_client'
                    '.XSRConfiguration.objects') as xsrCfg, \
                 patch('core.management.utils.xsr_client.'
-                      'pd.read_excel')as ext_data:
+                      'ET.parse')as ext_data1, \
+                patch('core.management.utils.xsr_client.'
+                      'pd.DataFrame')as ext_data:
+            # xml_string = """
+            #     <version>
+            #         <name>John</name>
+            #         <age>30</age>
+            #     </version>
+            #     """
+            # Parse the XML string
+            root = ET.fromstring(self.xml_string)
             xsrCfg.first.source_file.return_value = 'Source_file'
+            ext_data1.return_value = ext_data1
+            ext_data1.tree.getroot.return_value = root
             ext_data.return_value = pd.DataFrame. \
                 from_dict(self.source_metadata, orient='index')
             return_from_function = read_source_file()
@@ -37,7 +49,7 @@ class UtilsTests(TestSetUp):
     def test_get_source_metadata_key_value(self, first_value, second_value):
         """Test key dictionary creation for source"""
         test_dict = {
-            'LearningResourceIdentifier': first_value,
+            'AceID': first_value,
             'SOURCESYSTEM': second_value
         }
 
@@ -55,7 +67,7 @@ class UtilsTests(TestSetUp):
                                                 first_value, second_value):
         """Test key dictionary creation for source"""
         test_dict = {
-            'LearningResourceIdentifier': first_value,
+            'AceID': first_value,
             'SOURCESYSTEM': second_value
         }
 
