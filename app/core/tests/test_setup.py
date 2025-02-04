@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pandas as pd
 from django.test import TestCase
 
@@ -9,6 +11,10 @@ class TestSetUp(TestCase):
         """Function to set up necessary data for testing"""
 
         # globally accessible data sets
+        self.patcher = patch('core.tasks.conformance_alerts_Command')
+        self.mock_alert = self.patcher.start()
+
+        # globally accessible data sets
 
         self.source_metadata = {
             "Test": "0",
@@ -17,7 +23,7 @@ class TestSetUp(TestCase):
             "End_date": "9999-12-31T00:00:00-05:00",
             "test_name": "test name",
             "Start_date": "2017-03-28T00:00:00-04:00",
-            "LearningResourceIdentifier": "TestData 123",
+            "AceID": "TestData 123",
             "SOURCESYSTEM": "ACE",
             "test_description": "test description",
             "supplemental_data": "sample1"
@@ -39,6 +45,18 @@ class TestSetUp(TestCase):
             "key3": ["val3"]}
         self.metadata_df = pd.DataFrame.from_dict({1: self.source_metadata},
                                                   orient='index')
+
+        self.xml_string = """
+        <update Database="Courses">
+            <versions Chapter="Navy" Count="6">
+                <version AceID="NV-1511-0022">
+                <titles>
+                    <title Precedence="prime">Naval</title>
+                </titles>
+                </version>
+            </versions>
+        </update>
+        """
 
         return super().setUp()
 

@@ -2,14 +2,15 @@ import logging
 from unittest.mock import patch
 
 import pandas as pd
+from core.management.commands.copy_target_metadata import copy_target_metadata
+from core.management.commands.extract_source_metadata import (
+    add_publisher_to_source, extract_metadata_using_key, get_source_metadata,
+    store_source_metadata)
 from ddt import ddt
 from django.core.management import call_command
 from django.db.utils import OperationalError
 from django.test import tag
-from openlxp_xia.models import XIAConfiguration
-
-from core.management.commands.extract_source_metadata import (
-    add_publisher_to_source, extract_metadata_using_key, get_source_metadata)
+from openlxp_xia.models import MetadataLedger, XIAConfiguration
 
 from .test_setup import TestSetUp
 
@@ -47,7 +48,7 @@ class CommandTests(TestSetUp):
                    '.get_publisher_detail'), \
                 patch('openlxp_xia.management.utils.xia_internal'
                       '.XIAConfiguration.objects') as xisCfg:
-            xiaConfig = XIAConfiguration(publisher='ACE')
+            xiaConfig = XIAConfiguration(publisher='JKO')
             xisCfg.first.return_value = xiaConfig
             test_df = pd.DataFrame.from_dict(self.test_data)
             result = add_publisher_to_source(test_df)
@@ -80,6 +81,17 @@ class CommandTests(TestSetUp):
             self.assertEqual(mock_get_source.call_count, 1)
             self.assertEqual(mock_store_source.call_count, 1)
 
+    def test_store_source_metadata(self):
+        """Test to check saving of source metadata"""
+
+        store_source_metadata(self.key_value,
+                              self.key_value_hash,
+                              self.hash_value,
+                              self.source_metadata)
+        m_obj = MetadataLedger. \
+            objects.get(source_metadata_key=self.key_value)
+        self.assertIsNotNone(m_obj)
+
     def test_get_source_metadata(self):
         """Test to check extraction of source metadata as dataframe"""
 
@@ -93,3 +105,22 @@ class CommandTests(TestSetUp):
             mock_read_source_file.return_value = [df]
             get_source_metadata()
             self.assertEqual(mock_extract_metadata_using_key.call_count, 1)
+
+    # Test case with copy_target_metadata
+
+    def test_copy_target_metadata(self):
+        """Test for Copy source data to target
+        metadata fields for loading"""
+        metadata = MetadataLedger(source_metadata=self.source_metadata,
+                                  source_metadata_key=self.key_value,
+                                  source_metadata_key_hash=self.key_value_hash,
+                                  source_metadata_hash=self.hash_value)
+        metadata.save()
+        copy_target_metadata()
+
+        m_obj = MetadataLedger.objects.get(source_metadata_key=self.key_value)
+
+        self.assertEqual(m_obj.target_metadata, self.source_metadata)
+        self.assertEqual(m_obj.target_metadata_key, self.key_value)
+        self.assertEqual(m_obj.target_metadata_key_hash, self.key_value_hash)
+        self.assertEqual(m_obj.target_metadata_hash, self.hash_value)

@@ -1,9 +1,8 @@
 import logging
 from unittest.mock import patch
 
-from django.test import tag
-
 from core.tasks import execute_xia_automated_workflow
+from django.test import tag
 
 from .test_setup import TestSetUp
 

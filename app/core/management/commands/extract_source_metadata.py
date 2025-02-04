@@ -3,20 +3,22 @@ import json
 import logging
 
 import pandas as pd
+from core.management.utils.xsr_client import (get_source_metadata_key_value,
+                                              read_source_file)
 from django.core.management.base import BaseCommand
 from openlxp_xia.management.utils.xia_internal import (
     convert_date_to_isoformat, get_publisher_detail)
 from openlxp_xia.models import MetadataLedger
 
-from core.management.utils.xsr_client import (get_source_metadata_key_value)
-
 logger = logging.getLogger('dict_config_logger')
 
 
-def get_source_metadata(df_source_list):
+def get_source_metadata():
     """Retrieving source metadata"""
 
     #  Retrieve metadata from agents as a list of sources
+
+    df_source_list = read_source_file()
 
     # Iterate through the list of sources and extract metadata
     for source_item in df_source_list:
