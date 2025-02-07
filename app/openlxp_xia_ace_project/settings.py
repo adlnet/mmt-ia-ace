@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'core',
     'openlxp_xia',
-    'openlxp_notifications',
+    'openlxp_P1_notification',
     'django_celery_beat',
     'django_celery_results',
 ]
@@ -58,6 +58,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'openlxp_P1_notification.middleware.TemplateMiddleware',
 ]
 
 ROOT_URLCONF = 'openlxp_xia_ace_project.urls'
