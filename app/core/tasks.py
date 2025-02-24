@@ -1,8 +1,6 @@
 import logging
 
 from celery import shared_task
-from core.management.commands.copy_target_metadata import \
-    Command as transform_Command
 from core.management.commands.extract_source_metadata import \
     Command as extract_Command
 from openlxp_notifications.management.commands.trigger_status_update import \
@@ -11,6 +9,8 @@ from openlxp_xia.management.commands.load_supplemental_metadata import \
     Command as load_supplemental_Command
 from openlxp_xia.management.commands.load_target_metadata import \
     Command as load_Command
+from openlxp_xia.management.commands.transform_source_metadata import \
+    Command as transform_Command
 from openlxp_xia.management.commands.validate_source_metadata import \
     Command as validate_source_Command
 from openlxp_xia.management.commands.validate_target_metadata import \

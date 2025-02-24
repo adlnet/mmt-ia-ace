@@ -1,88 +1,51 @@
 import hashlib
+import json
 import logging
-import xml.etree.ElementTree as ET
 
 import pandas as pd
+import requests
 from core.models import XSRConfiguration
 from openlxp_xia.management.utils.xia_internal import get_key_dict
 
 logger = logging.getLogger('dict_config_logger')
 
 
-def read_source_file():
-    """setting file path from s3 bucket"""
-    xsr_data = XSRConfiguration.objects.first()
-    file_name = xsr_data.source_file
+def get_xsr_api_endpoint(xsr_obj):
+    """Setting API endpoint to connect to XSR """
+    logger.debug("Retrieve xsr_api_endpoint from XSR configuration")
+    # add parameters to API
 
-    # Parse the XML file
-    tree = ET.parse(file_name)
+    xsr_url = xsr_obj.Transcript_API
+    if xsr_obj.Parameter:
+        # Iterate over key-value pairs
+        for key, value in xsr_obj.Parameter.items():
+            xsr_url += '?'+str(key)+'='+str(value)
+    return (xsr_url, xsr_obj.Subscription_key)
 
-    # Get the root element
-    xsr_root = tree.getroot()
 
-    xsr_items = []
+def get_xsr_api_response(xsr_obj):
+    """Function to get api response from xsr endpoint"""
+    # url of rss feed
 
-    for s_item in xsr_root.findall('.//version'):
-        xsr_items.append(s_item.attrib)
+    xsr_url, token = get_xsr_api_endpoint(xsr_obj)
 
-        for count, item in enumerate(s_item):
+    headers = {'Cache-Control': 'no-cache',
+               'Ocp-Apim-Subscription-Key': token}
 
-            xsr_items[-1][item.tag] = {}
-            xsr_items[-1][item.tag] = item.attrib
+    # creating HTTP response object from given url
+    try:
+        resp = requests.get(url=xsr_url, headers=headers, verify=False)
+    except requests.exceptions.RequestException as e:
+        logger.error(e)
+        raise SystemExit('Exiting! Can not make connection with XSR.')
 
-            for count1, c_item in enumerate(item):
-
-                if c_item.tag not in xsr_items[-1][item.tag]:
-                    xsr_items[-1][item.tag][c_item.tag] = list()
-
-                if c_item.text:
-                    xsr_items[-1][item.tag][c_item.tag].append(
-                        {c_item.tag: c_item.text})
-                    (xsr_items[-1][item.tag][c_item.tag][-1]).update(
-                        c_item.attrib)
-                else:
-                    xsr_items[-1][item.tag][c_item.tag].append(c_item.attrib)
-
-                for count1_1, item1_1 in enumerate(c_item):
-
-                    xsr_items[-1][item.tag][c_item.tag][-1][item1_1.tag] = (
-                        item1_1.attrib)
-
-                    for count2, cs_item in enumerate(item1_1):
-
-                        if cs_item.tag not in (xsr_items[-1][item.tag]
-                                               [c_item.tag][-1][item1_1.tag]):
-                            (xsr_items[-1][item.tag][c_item.tag][-1]
-                             [item1_1.tag][cs_item.tag]) = list()
-
-                        if cs_item.text:
-                            (xsr_items[-1][item.tag][c_item.tag]
-                             [-1][item1_1.tag][cs_item.tag]). \
-                                append({cs_item.tag: cs_item.text})
-                            (xsr_items[-1][item.tag][c_item.tag]
-                             [-1][item1_1.tag][cs_item.tag][-1]). \
-                                update(cs_item.attrib)
-                        else:
-                            (xsr_items[-1][item.tag][c_item.tag]
-                             [-1][item1_1.tag][cs_item.tag]).append(
-                                cs_item.attrib)
-
-    source_df = pd.DataFrame(xsr_items)
-    std_source_df = source_df.where(pd.notnull(source_df),
-                                    None)
-
-    #  Creating list of dataframes of sources
-    source_list = [std_source_df]
-
-    logger.debug("Sending source data in dataframe format for EVTVL")
-    # file_name.delete()
-    return source_list
+    return resp
 
 
 def get_source_metadata_key_value(data_dict):
     """Function to create key value for source metadata """
     # field names depend on source data and SOURCESYSTEM is system generated
-    field = ['AceID', 'SOURCESYSTEM']
+    field = ['ACEID', 'VerNum', 'CourseNumber', 'SOURCESYSTEM']
     field_values = []
 
     for item in field:
@@ -102,3 +65,41 @@ def get_source_metadata_key_value(data_dict):
     key = get_key_dict(key_value, key_value_hash)
 
     return key
+
+
+def extract_source():
+    """function to parse xsr data and
+    convert to dictionary"""
+
+    ace_fields = ['ACEID',
+                  'VerNum',
+                  'Chapter',
+                  'ModDate',
+                  'StartDateYYYYMM',
+                  'EndDateYYYYMM',
+                  'LastUpdatedOn',
+                  'objective',
+                  'instruction',
+                  'titles',
+                  'locations',
+                  'groups']
+    std_source_df = pd.DataFrame()
+
+    for xsr_obj in XSRConfiguration.objects.all():
+
+        resp = get_xsr_api_response(xsr_obj)
+        source_data_dict = json.loads(resp.text)
+        source_data_dict = source_data_dict["update"]['versions']
+
+        logger.info("Retrieving data from source page ")
+        source_df_list = [pd.json_normalize(source_data_dict,
+                                            record_path=['courses'],
+                                            meta=ace_fields,
+                                            errors='ignore')]
+
+        source_df = pd.concat(source_df_list).reset_index(drop=True)
+        logger.info("Changing null values to None for source dataframe")
+        std_source_df = source_df.where(pd.notnull(source_df),
+                                        None)
+    logger.info("Completed retrieving data from source")
+    return [std_source_df]

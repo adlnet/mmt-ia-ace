@@ -2,12 +2,11 @@ import hashlib
 import json
 import logging
 
-import pandas as pd
-from core.management.utils.xsr_client import (get_source_metadata_key_value,
-                                              read_source_file)
+from core.management.utils.xsr_client import (extract_source,
+                                              get_source_metadata_key_value)
 from django.core.management.base import BaseCommand
-from openlxp_xia.management.utils.xia_internal import (
-    convert_date_to_isoformat, get_publisher_detail)
+from django.utils import timezone
+from openlxp_xia.management.utils.xia_internal import convert_date_to_isoformat
 from openlxp_xia.models import MetadataLedger
 
 logger = logging.getLogger('dict_config_logger')
@@ -17,26 +16,20 @@ def get_source_metadata():
     """Retrieving source metadata"""
 
     #  Retrieve metadata from agents as a list of sources
-
-    df_source_list = read_source_file()
-
+    df_source_list = extract_source()
     # Iterate through the list of sources and extract metadata
     for source_item in df_source_list:
-        logger.info('Loading metadata to be extracted from source')
-
-        # Changing null values to None for source dataframe
-        std_source_df = source_item.where(pd.notnull(source_item),
-                                          None)
-        if std_source_df.empty:
+        if source_item.empty:
             logger.error("Source metadata is empty!")
-        extract_metadata_using_key(std_source_df)
+        extract_metadata_using_key(source_item)
 
 
 def add_publisher_to_source(source_df):
     """Add publisher column to source metadata and return source metadata"""
 
     # Get publisher name from system operator
-    publisher = get_publisher_detail()
+    # publisher = get_publisher_detail()
+    publisher = 'ACE'
     if not publisher:
         logger.warning("Publisher field is empty!")
     # Assign publisher column to source data
@@ -48,6 +41,21 @@ def store_source_metadata(key_value, key_value_hash, hash_value, metadata):
     """Extract data from Experience Source Repository(XSR)
         and store in metadata ledger
     """
+
+    record_exists = MetadataLedger.objects.filter(
+        source_metadata_key_hash=key_value_hash,
+        record_lifecycle_status='Active').exclude(
+        source_metadata_hash=hash_value)
+
+    for record in record_exists:
+        if (record and
+            (metadata["LastUpdatedOn"] >=
+             record.source_metadata["LastUpdatedOn"])):
+            # Setting record_status & deleted_date for updated record
+            record.metadata_record_inactivation_date = timezone.now()
+            record.record_lifecycle_status = 'Inactive'
+            record.save()
+
     # Retrieving existing records or creating new record to MetadataLedger
     MetadataLedger.objects.get_or_create(
         source_metadata_key=key_value,

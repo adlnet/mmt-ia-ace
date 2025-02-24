@@ -7,5 +7,7 @@ from .models import XSRConfiguration
 
 @admin.register(XSRConfiguration)
 class XSRConfigurationAdmin(admin.ModelAdmin):
-    list_display = ('source_file',)
-    fields = ['source_file']
+    list_display = ('Transcript_API',)
+    fields = ['Transcript_API',
+              'Subscription_key',
+              'Parameter']
