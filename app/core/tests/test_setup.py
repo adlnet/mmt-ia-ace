@@ -19,7 +19,7 @@ class TestSetUp(TestCase):
         self.xsr_data = {"update": {"versions": {
             "VerNum": "0",
             "Test_id": "2146",
-            "groups": [{'test_key': 'test_val'}],
+            "groups": [{'subjects': 'test_val'}],
             "End_date": "9999-12-31T00:00:00-05:00",
             "Chapter": "test name",
             "ModDate": "2017-05-28T00:00:00-04:00",
@@ -28,7 +28,12 @@ class TestSetUp(TestCase):
             "ACEID": "TestData 123",
             "SOURCESYSTEM": "ACE",
             "courses": [{"CourseNumber": "ABC 123"}],
-            "titles": "test title",
+            "titles": [
+                {
+                    "Title": "Aviation Gunner Instructor",
+                    "Precedence": "prime"
+                }
+            ],
             "objective": "test description",
             "instruction": "test instruction",
             "locations": "sample1",
@@ -46,7 +51,12 @@ class TestSetUp(TestCase):
             "EndDateYYYYMM": "2027-03-28T00:00:00-04:00",
             "ACEID": "TestData 123",
             "SOURCESYSTEM": "ACE",
-            "titles": "test title",
+            "titles": [
+                {
+                    "Title": "Aviation Gunner Instructor",
+                    "Precedence": "prime"
+                }
+            ],
             "objective": "test description",
             "instruction": "test instruction",
             "supplemental_data": "sample1",

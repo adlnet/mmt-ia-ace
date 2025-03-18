@@ -120,7 +120,5 @@ class CommandTests(TestSetUp):
         m_obj_inactive = MetadataLedger. \
             objects.get(source_metadata_key=self.key_value,
                         record_lifecycle_status="Inactive")
-        print(m_obj_inactive)
-        print(m_obj_active)
         self.assertIsNotNone(m_obj_active)
         self.assertIsNotNone(m_obj_inactive)

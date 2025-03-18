@@ -70,14 +70,13 @@ class UtilsTests(TestSetUp):
     def test_get_source_metadata_key_value(self, first_value, second_value):
         """Test key dictionary creation for source"""
         test_dict = {
-            'ACEID': first_value,
+            'Key_val': first_value,
             'VerNum': first_value,
             'CourseNumber': second_value,
             'SOURCESYSTEM': second_value
         }
 
-        expected_key = (first_value + '_' + first_value +
-                        '_' + second_value + '_' + second_value)
+        expected_key = (first_value + '_' + second_value)
         expected_key_hash = hashlib.sha512(expected_key.encode('utf-8')). \
             hexdigest()
 
@@ -91,7 +90,7 @@ class UtilsTests(TestSetUp):
                                                 first_value, second_value):
         """Test key dictionary creation for source"""
         test_dict = {
-            'AceID': first_value,
+            'Key_val': first_value,
             'VerNum': first_value,
             'CourseNumber': second_value,
             'SOURCESYSTEM': second_value

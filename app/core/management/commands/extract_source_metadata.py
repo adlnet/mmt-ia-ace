@@ -2,7 +2,9 @@ import hashlib
 import json
 import logging
 
-from core.management.utils.xsr_client import (extract_source,
+from core.management.utils.xsr_client import (custom_ACE_data,
+                                              custom_ACE_setting_areas,
+                                              extract_source,
                                               get_source_metadata_key_value)
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -82,9 +84,13 @@ def extract_metadata_using_key(source_df):
         # Call store function with key, hash of key, hash of metadata,
         # metadata
 
-        temp_val_convert = json.dumps(temp_val,
+        temp_val_modified = custom_ACE_data(temp_val)
+
+        temp_val_convert = json.dumps(temp_val_modified,
                                       default=convert_date_to_isoformat)
-        temp_val_json = json.loads(temp_val_convert)
+        temp_json = json.loads(temp_val_convert)
+
+        temp_val_json = custom_ACE_setting_areas(temp_json)
 
         # creating hash value of metadata
         hash_value = hashlib.sha512(str(temp_val_json).encode('utf-8')).\
