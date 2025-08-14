@@ -1,5 +1,4 @@
 from core.models import XSRConfiguration
-from django.core.exceptions import ValidationError
 from django.test import TestCase, tag
 
 
@@ -9,22 +8,17 @@ class ModelTests(TestCase):
     def test_create_xsr_configuration(self):
         """Test that creating a new XSR Configuration entry is successful
         with defaults """
-        source_file = 'test_file.json'
+        test_data = 'test'
+        test_json = {"key": "value"}
 
-        xiaConfig = XSRConfiguration(
-            source_file=source_file)
+        xia_config = XSRConfiguration(
+            Transcript_API=test_data,
+            Subscription_key=test_data,
+            Parameter=test_json)
 
-        self.assertEqual(xiaConfig.source_file,
-                         source_file)
-
-    def test_create_two_xsr_configuration(self):
-        """Test that trying to create more than one XSR Configuration throws
-        ValidationError """
-        with self.assertRaises(ValidationError):
-            xsrConfig = \
-                XSRConfiguration(source_file="example1.json")
-            xsrConfig2 = \
-                XSRConfiguration(source_file="example2.json")
-
-            xsrConfig.save()
-            xsrConfig2.save()
+        self.assertEqual(xia_config.Transcript_API,
+                         test_data)
+        self.assertEqual(xia_config.Subscription_key,
+                         test_data)
+        self.assertEqual(xia_config.Parameter,
+                         test_json)

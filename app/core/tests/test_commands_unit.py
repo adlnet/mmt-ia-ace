@@ -2,7 +2,6 @@ import logging
 from unittest.mock import patch
 
 import pandas as pd
-from core.management.commands.copy_target_metadata import copy_target_metadata
 from core.management.commands.extract_source_metadata import (
     add_publisher_to_source, extract_metadata_using_key, get_source_metadata,
     store_source_metadata)
@@ -40,6 +39,14 @@ class CommandTests(TestSetUp):
             self.assertEqual(gi.ensure_connection.call_count, 6)
 
     # Test case with extract_source_metadata
+    @patch('core.management.commands.extract_source_metadata.logger')
+    def test_get_source_metadata(self, mock_logger):
+        """Test Retrieving source metadata"""
+        with patch('core.management.commands.extract_source_metadata'
+                   '.extract_source') as sample_df:
+            sample_df.return_value = [pd.DataFrame()]
+            get_source_metadata()
+            mock_logger.error.assert_called_with("Source metadata is empty!")
 
     def test_add_publisher_to_source(self):
         """Test for Add publisher column to source metadata and return
@@ -47,9 +54,9 @@ class CommandTests(TestSetUp):
         with patch('openlxp_xia.management.utils.xia_internal'
                    '.get_publisher_detail'), \
                 patch('openlxp_xia.management.utils.xia_internal'
-                      '.XIAConfiguration.objects') as xisCfg:
-            xiaConfig = XIAConfiguration(publisher='JKO')
-            xisCfg.first.return_value = xiaConfig
+                      '.XIAConfiguration.objects') as xis_cfg:
+            xia_config = XIAConfiguration(publisher='JKO')
+            xis_cfg.first.return_value = xia_config
             test_df = pd.DataFrame.from_dict(self.test_data)
             result = add_publisher_to_source(test_df)
             key_exist = 'SOURCESYSTEM' in result.columns
@@ -92,35 +99,26 @@ class CommandTests(TestSetUp):
             objects.get(source_metadata_key=self.key_value)
         self.assertIsNotNone(m_obj)
 
-    def test_get_source_metadata(self):
-        """Test to check extraction of source metadata as dataframe"""
+    def test_store_source_metadata_active_inactive(self):
+        """Test to check saving of source metadata
+        active and inactive"""
 
-        with patch('core.management.commands.extract_source_metadata.'
-                   'read_source_file') as mock_read_source_file, \
-                patch('core.management.commands.extract_source_metadata.'
-                      'read_source_file') as mock_extract_metadata_using_key:
-            d = {'col1': [0, 1, 2, 3], 'col2': pd.Series([2, 3], index=[2, 3])}
-            df = pd.DataFrame(data=d, index=[0, 1, 2, 3])
-            mock_read_source_file.return_value = mock_read_source_file
-            mock_read_source_file.return_value = [df]
-            get_source_metadata()
-            self.assertEqual(mock_extract_metadata_using_key.call_count, 1)
+        store_source_metadata(self.key_value,
+                              self.key_value_hash,
+                              self.hash_value,
+                              self.source_metadata)
+        metadata_new = self.source_metadata
+        metadata_new["LastUpdatedOn"] = "2018-03-28T00:00:00-04:00"
 
-    # Test case with copy_target_metadata
-
-    def test_copy_target_metadata(self):
-        """Test for Copy source data to target
-        metadata fields for loading"""
-        metadata = MetadataLedger(source_metadata=self.source_metadata,
-                                  source_metadata_key=self.key_value,
-                                  source_metadata_key_hash=self.key_value_hash,
-                                  source_metadata_hash=self.hash_value)
-        metadata.save()
-        copy_target_metadata()
-
-        m_obj = MetadataLedger.objects.get(source_metadata_key=self.key_value)
-
-        self.assertEqual(m_obj.target_metadata, self.source_metadata)
-        self.assertEqual(m_obj.target_metadata_key, self.key_value)
-        self.assertEqual(m_obj.target_metadata_key_hash, self.key_value_hash)
-        self.assertEqual(m_obj.target_metadata_hash, self.hash_value)
+        store_source_metadata(self.key_value,
+                              self.key_value_hash,
+                              self.hash_value1,
+                              metadata_new)
+        m_obj_active = MetadataLedger. \
+            objects.get(source_metadata_key=self.key_value,
+                        record_lifecycle_status="Active")
+        m_obj_inactive = MetadataLedger. \
+            objects.get(source_metadata_key=self.key_value,
+                        record_lifecycle_status="Inactive")
+        self.assertIsNotNone(m_obj_active)
+        self.assertIsNotNone(m_obj_inactive)
