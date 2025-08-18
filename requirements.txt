@@ -1,10 +1,10 @@
 bleach==6.0.0
 
-boto3~=1.20.24
+boto3~=1.40.7
 
-botocore~=1.23.45
+botocore~=1.40.7
 
-celery>=5.2.0, <5.2.3
+celery>=5.2.3, <6.0
 
 clamd==1.0.2
 
@@ -24,7 +24,7 @@ django-model-utils>=4.1.1,<4.2.0
 
 django-mysql>=4.4.0,<4.5.0
 
-djangorestframework>=3.13.0,<3.13.1
+djangorestframework>=3.15.2,<3.16.0
 
 django-admin-interface>=0.28.3
 
