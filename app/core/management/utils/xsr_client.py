@@ -2,7 +2,9 @@ import hashlib
 import json
 import logging
 from datetime import datetime
+import os
 
+import boto3
 import pandas as pd
 import requests
 from core.models import XSRConfiguration
@@ -46,7 +48,7 @@ def get_xsr_api_response(xsr_obj):
 
     # creating HTTP response object from given url
     try:
-        resp = requests.get(url=xsr_url, headers=headers, verify=False)
+        resp = requests.get(url=xsr_url, headers=headers)
     except requests.exceptions.RequestException as e:
         logger.error(e)
         raise SystemExit('Exiting! Can not make connection with XSR.')
@@ -79,88 +81,81 @@ def get_source_metadata_key_value(data_dict):
     return key
 
 
-def custom_ACE_setting_areas(metadata):
+def _extract_area_fields(metadata):
+    """Extracts version, start_date, end_date, 
+    last_updated_on from metadata."""
+    titles = _process_titles(metadata.get('titles', []))
+    skill_level = metadata.get('SkillLevel', "")
+    version = metadata.get('VerNum', "")
+    start_date = convert_yyyymm_to_date(metadata.get(
+        'StartDateYYYYMM', "")) if metadata.get('StartDateYYYYMM') else ""
+    end_date = convert_yyyymm_to_date(metadata.get(
+        'EndDateYYYYMM', "")) if metadata.get('EndDateYYYYMM') else ""
+    last_updated_on = convert_date_to_isoformat(metadata.get(
+        'LastUpdatedOn', "")) if metadata.get('LastUpdatedOn') else ""
+    return version, start_date, end_date, last_updated_on, skill_level, titles
 
+
+def _build_area_dict(subject, level, version, start_date,
+                     end_date, last_updated_on, metadata, skill_level,
+                     titles):
+    return {
+        "hours": subject['Min'],
+        "level": level['AcadLevel'],
+        "version": version,
+        "start_date": start_date,
+        "end_date": end_date,
+        "last_updated_on": last_updated_on,
+        "academic_course_area": {
+            "course_area": subject['Subject']
+        },
+        "military_course": metadata["experience_id"],
+        "military_name": titles,
+        "skill_level": skill_level,
+        "ace_identifier": metadata['ACEID']
+    }
+
+
+def _process_titles(titles):
+    if not titles:
+        return ""
+    # Ensure titles is a list
+    if not isinstance(titles, list):
+        titles = [titles] if titles else []
+    title_list = [None] * len(titles)
+    num = len(titles) - 1
+    for item in titles:
+        if item.get("Precedence") == "prime":
+            title_list[0] = item.get("Title")
+        else:
+            title_list[num] = item.get("Title")
+            num -= 1
+    return ", ".join(filter(None, title_list))
+
+
+def custom_ace_setting_areas(metadata):
+    """Reduce complexity by splitting logic into helpers."""
+    version, start_date, end_date, last_updated_on, skill_level, titles = \
+        _extract_area_fields(
+            metadata)
     areasandhours_list = []
 
-    area_dict = {}
-    version = ""
-    start_date = ""
-    end_date = ""
-    last_updated_on = ""
-
-    # if 'ACEID' in metadata and metadata['ACEID']:
-
-    #     ace_identifier = metadata['ACEID']
-
-    # area_dict.update({
-    #     "ace_identifier": {"ace_identifier": metadata['ACEID']}})
-
-    if 'VerNum' in metadata and metadata['VerNum']:
-
-        version = metadata['VerNum']
-        area_dict.update({
-            "version": metadata['VerNum']})
-
-    if 'StartDateYYYYMM' in metadata and metadata['StartDateYYYYMM']:
-
-        start_date = convert_yyyymm_to_date(metadata['StartDateYYYYMM'])
-
-        # area_dict.update({
-        #     "start_date": start_date})
-    if 'EndDateYYYYMM' in metadata and metadata['EndDateYYYYMM']:
-
-        end_date = convert_yyyymm_to_date(metadata['EndDateYYYYMM'])
-
-        # area_dict.update({
-        #     "end_date": end_date})
-    if 'LastUpdatedOn' in metadata and metadata['LastUpdatedOn']:
-
-        last_updated_on = convert_date_to_isoformat(metadata['LastUpdatedOn'])
-
-        # area_dict.update({
-        #     "last_updated_on": last_updated_on})
-
-    if 'groups' in metadata and metadata['groups']:
-        for level in metadata['groups']:
-            if 'subject' in level:
-                for subject in level['subjects']:
-                    area_dict = {
-                        "hours": subject['Min'],
-                        "level": level['AcadLevel'],
-                        "version": version,
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "last_updated_on": last_updated_on,
-                        "academic_course_area": {
-                            "course_area": subject['Subject']
-                        }
-                    }
-
-                areasandhours_list.append(area_dict)
+    groups = metadata.get('groups', [])
+    if not isinstance(groups, list):
+        groups = [groups] if groups else []
+    for level in groups:
+        for subject in level.get('subjects', []):
+            area_dict = _build_area_dict(
+                subject, level, version, start_date,
+                end_date, last_updated_on, metadata, skill_level, titles)
+            areasandhours_list.append(area_dict)
 
     metadata['groups'] = areasandhours_list
-
-    if 'titles' in metadata and metadata['titles']:
-        title_json = metadata['titles']
-        title_len = len(title_json)
-
-        title_list = [None]*title_len
-        num = title_len-1
-
-        for item in title_json:
-            if item["Precedence"] == "prime":
-                title_list[-title_len] = item["Title"]
-            else:
-                title_list[num] = item["Title"]
-                num -= 1
-        title = ", ".join(title_list)
-        metadata['titles'] = title
-
+    metadata['titles'] = _process_titles(metadata.get('titles', []))
     return metadata
 
 
-def custom_ACE_data(metadata):
+def custom_ace_data(metadata):
     """Custom manipulation to ACE metadata"""
 
     if ('description' in metadata and
@@ -176,7 +171,7 @@ def custom_ACE_data(metadata):
     return metadata
 
 
-def extract_ACE_course_data(source_data_dict):
+def extract_ace_course_data(source_data_dict):
     ace_fields = ['ACEID',
                   'VerNum',
                   'Chapter',
@@ -202,12 +197,11 @@ def extract_ACE_course_data(source_data_dict):
     source_df["Key_val"] = (
         source_df["ACEID"] + source_df["CourseNumber"] +
         source_df["VerNum"])
-    source_df.to_excel("course.xlsx")
     source_df_list = source_df
     return source_df_list
 
 
-def extract_ACE_occupation_data(source_data_dict):
+def extract_ace_occupation_data(source_data_dict):
     ace_fields = ['ACEID',
                   'Type',
                   'Chapter',
@@ -238,29 +232,64 @@ def extract_ACE_occupation_data(source_data_dict):
     return source_df_list
 
 
+def _read_from_s3(s3_source_file):
+    """Read JSON data from S3 bucket."""
+    bucket_name = os.getenv("S3_BUCKET_NAME")
+    if not bucket_name:
+        logger.warning("S3 bucket name not found")
+        return None
+
+    try:
+        s3 = boto3.resource('s3')
+        logger.info("Reading source file from S3")
+        obj = s3.Object(bucket_name, s3_source_file)
+        return json.loads(obj.get()['Body'].read().decode('utf-8'))
+    except s3.meta.client.exceptions.NoSuchKey:
+        logger.error("File %s not found in bucket %s",
+                     s3_source_file, bucket_name)
+        return None
+    except Exception as e:
+        logger.error("Error reading from S3: %s", e)
+        return None
+
+
+def _get_source_data(xsr_obj):
+    """Get source data from either S3 or API."""
+    if xsr_obj.s3_source_file:
+        return _read_from_s3(xsr_obj.s3_source_file)
+    else:
+        logger.info("Retrieving data from XSR API")
+        resp = get_xsr_api_response(xsr_obj)
+        return json.loads(resp.text)
+
+
+def _process_xsr_configuration(xsr_obj):
+    """Process a single XSR configuration and return dataframe."""
+    source_data_dict = _get_source_data(xsr_obj)
+    if source_data_dict is None:
+        return None
+
+    if xsr_obj.API_type == "Course":
+        return extract_ace_course_data(source_data_dict)
+    else:
+        return extract_ace_occupation_data(source_data_dict)
+
+
 def extract_source():
-    """function to parse xsr data and
-    convert to dictionary"""
-
-    std_source_df = pd.DataFrame()
-
+    """Function to parse xsr data and convert to dictionary"""
     source_df_list = []
 
     for xsr_obj in XSRConfiguration.objects.all():
+        source_df = _process_xsr_configuration(xsr_obj)
+        if source_df is not None:
+            source_df_list.append(source_df)
 
-        resp = get_xsr_api_response(xsr_obj)
-        source_data_dict = json.loads(resp.text)
-
-        if xsr_obj.API_type == "Course":
-            source_df = extract_ACE_course_data(source_data_dict)
-
-        else:
-            source_df = extract_ACE_occupation_data(source_data_dict)
-        source_df_list.append(source_df)
+    if not source_df_list:
+        logger.warning("No data retrieved from any XSR configuration")
+        return [pd.DataFrame()]
 
     source_df = pd.concat(source_df_list).reset_index(drop=True)
     logger.info("Changing null values to None for source dataframe")
-    std_source_df = source_df.where(pd.notnull(source_df),
-                                    None)
+    std_source_df = source_df.where(pd.notnull(source_df), None)
     logger.info("Completed retrieving data from source")
     return [std_source_df]

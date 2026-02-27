@@ -76,7 +76,7 @@ class UtilsTests(TestSetUp):
             'SOURCESYSTEM': second_value
         }
 
-        expected_key = (first_value + '_' + second_value)
+        expected_key = first_value + '_' + second_value
         expected_key_hash = hashlib.sha512(expected_key.encode('utf-8')). \
             hexdigest()
 

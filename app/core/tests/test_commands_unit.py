@@ -43,19 +43,23 @@ class CommandTests(TestSetUp):
     def test_get_source_metadata(self, mock_logger):
         """Test Retrieving source metadata"""
         with patch('core.management.commands.extract_source_metadata'
-                   '.extract_source') as sample_df:
+                   '.extract_source') as sample_df, \
+            patch('core.management.commands.extract_source_metadata'
+                  '.extract_metadata_using_key'):
             sample_df.return_value = [pd.DataFrame()]
             get_source_metadata()
-            mock_logger.error.assert_called_with("Source metadata is empty!")
+            mock_logger.\
+                error.assert_called_with("Source metadata is empty!")
 
     def test_add_publisher_to_source(self):
         """Test for Add publisher column to source metadata and return
         source metadata"""
-        with patch('openlxp_xia.management.utils.xia_internal'
-                   '.get_publisher_detail'), \
+        with patch('core.management.commands.extract_source_metadata'
+                   '.get_publisher_detail') as mock_get_publisher, \
                 patch('openlxp_xia.management.utils.xia_internal'
                       '.XIAConfiguration.objects') as xis_cfg:
-            xia_config = XIAConfiguration(publisher='JKO')
+            xia_config = XIAConfiguration(publisher='ACE')
+            mock_get_publisher.return_value = 'ACE'
             xis_cfg.first.return_value = xia_config
             test_df = pd.DataFrame.from_dict(self.test_data)
             result = add_publisher_to_source(test_df)

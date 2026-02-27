@@ -14,13 +14,15 @@ class MyForm(forms.ModelForm):
 
     class Meta:
         model = XSRConfiguration
-        fields = '__all__'
+        fields = ['Transcript_API',
+                  'Subscription_key',
+                  'Parameter', 'API_type']
 
 
 @admin.register(XSRConfiguration)
 class XSRConfigurationAdmin(admin.ModelAdmin):
-    list_display = ('Transcript_API',)
+    list_display = ('Transcript_API', 's3_source_file', 'API_type')
     fields = ['Transcript_API',
               'Subscription_key',
-              'Parameter', 'API_type']
+              'Parameter', 'API_type', 's3_source_file']
     form = MyForm

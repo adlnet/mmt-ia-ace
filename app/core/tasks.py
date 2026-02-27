@@ -1,8 +1,6 @@
 import logging
 
 from celery import shared_task
-from core.management.commands.extract_source_metadata import \
-    Command as extract_Command
 from openlxp_notifications.management.commands.trigger_status_update import \
     Command as conformance_alerts_Command
 from openlxp_xia.management.commands.load_supplemental_metadata import \
@@ -16,6 +14,9 @@ from openlxp_xia.management.commands.validate_source_metadata import \
 from openlxp_xia.management.commands.validate_target_metadata import \
     Command as validate_target_Command
 
+from core.management.commands.extract_source_metadata import \
+    Command as extract_Command
+
 logger = logging.getLogger('dict_config_logger')
 
 
@@ -25,19 +26,31 @@ def execute_xia_automated_workflow():
     logger.info('STARTING WORKFLOW')
 
     conformance_alerts_class = conformance_alerts_Command()
-    extract_class = extract_Command()
     validate_source_class = validate_source_Command()
     transform_class = transform_Command()
     validate_target_class = validate_target_Command()
     load_class = load_Command()
     load_supplemental_class = load_supplemental_Command()
 
-    conformance_alerts_class.handle(email_references="Status_update")
-    extract_class.handle()
     validate_source_class.handle()
     transform_class.handle()
     validate_target_class.handle()
     load_class.handle()
     load_supplemental_class.handle()
+    conformance_alerts_class.handle(email_references="Status_update")
 
     logger.info('COMPLETED WORKFLOW')
+
+
+@shared_task(name="xia_load_metadata")
+def xia_load_metadata():
+    """XIA load metadata task"""
+    logger.info('STARTING XIA LOAD METADATA TASK')
+
+    load_class = load_Command()
+    load_supplemental_class = load_supplemental_Command()
+
+    load_class.handle()
+    load_supplemental_class.handle()
+
+    logger.info('COMPLETED XIA LOAD METADATA TASK')

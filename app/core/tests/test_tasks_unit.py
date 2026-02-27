@@ -1,10 +1,11 @@
 import logging
 from unittest.mock import patch
 
-from core.tasks import execute_xia_automated_workflow
 from django.test import tag
 
 from .test_setup import TestSetUp
+
+from core.tasks import execute_xia_automated_workflow
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -27,8 +28,7 @@ class TasksTests(TestSetUp):
     def test_check_calls_xia_workflow(self):
         """Testing the calls to commands from task list"""
 
-        with patch('core.tasks.extract_Command.handle') as mock_extract, \
-                patch('core.tasks.validate_source_Command.'
+        with patch('core.tasks.validate_source_Command.'
                       'handle') as mock_validate_source, \
                 patch('core.tasks.transform_Command.'
                       'handle') as mock_transform, \
@@ -42,7 +42,6 @@ class TasksTests(TestSetUp):
 
             execute_xia_automated_workflow.run()
 
-            self.assertEqual(mock_extract.call_count, 1)
             self.assertEqual(mock_validate_source.call_count, 1)
             self.assertEqual(mock_transform.call_count, 1)
             self.assertEqual(mock_validate_target.call_count, 1)

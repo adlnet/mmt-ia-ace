@@ -2,14 +2,15 @@ import hashlib
 import json
 import logging
 
-from core.management.utils.xsr_client import (custom_ACE_data,
-                                              custom_ACE_setting_areas,
+from core.management.utils.xsr_client import (custom_ace_data,
+                                              custom_ace_setting_areas,
                                               extract_source,
                                               get_source_metadata_key_value)
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from openlxp_xia.management.utils.xia_internal import convert_date_to_isoformat
-from openlxp_xia.models import MetadataLedger
+from openlxp_xia.management.utils.xia_internal import (
+    convert_date_to_isoformat, get_publisher_detail)
+from openlxp_xia.models import MetadataLedger, XIAConfiguration
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -21,8 +22,10 @@ def get_source_metadata():
     df_source_list = extract_source()
     # Iterate through the list of sources and extract metadata
     for source_item in df_source_list:
+
         if source_item.empty:
             logger.error("Source metadata is empty!")
+
         extract_metadata_using_key(source_item)
 
 
@@ -30,10 +33,10 @@ def add_publisher_to_source(source_df):
     """Add publisher column to source metadata and return source metadata"""
 
     # Get publisher name from system operator
-    # publisher = get_publisher_detail()
-    publisher = 'ACE'
+    publisher = get_publisher_detail(None)
     if not publisher:
         logger.warning("Publisher field is empty!")
+        publisher = "ACE"
     # Assign publisher column to source data
     source_df['SOURCESYSTEM'] = publisher
     return source_df
@@ -71,34 +74,50 @@ def extract_metadata_using_key(source_df):
     """Creating key, hash of key & hash of metadata """
     # Convert source data to dictionary and add publisher to metadata
     source_df = add_publisher_to_source(source_df)
-    source_data_dict = source_df.to_dict(orient='index')
+    logger.info("Source dataframe after adding publisher column")
+    logger.info(type(source_df))
+    logger.info(source_df.head())
+    logger.info(source_df.columns)
+    logger.info("Printing source dataframe as dictionary")
+    print(source_df.to_dict(orient='records'))  # --- IGNORE ---
+    print(source_df.to_dict(orient='index'))  # --- IGNORE ---
+
+    try:
+        source_data_dict = source_df.to_dict(orient='index')
+    except Exception as e:  # lint: disable=broad-except
+        logger.error("Error converting DataFrame to dictionary: %s", e)
+        return
 
     logger.info('Setting record_status & deleted_date for updated record')
     logger.info('Getting existing records or creating new record to '
                 'MetadataLedger')
-    for temp_key, temp_val in source_data_dict.items():
-        # key dictionary creation function called
-        key = \
-            get_source_metadata_key_value(source_data_dict[temp_key])
+    if source_data_dict:
+        for temp_key, temp_val in source_data_dict.items():
+            # key dictionary creation function called
+            key = \
+                get_source_metadata_key_value(source_data_dict[temp_key])
+            logger.info('Key dictionary created for source metadata %s', key)
 
-        # Call store function with key, hash of key, hash of metadata,
-        # metadata
+            # Call store function with key, hash of key, hash of metadata,
+            # metadata
 
-        temp_val_modified = custom_ACE_data(temp_val)
+            temp_val_modified = custom_ace_data(temp_val)
 
-        temp_val_convert = json.dumps(temp_val_modified,
-                                      default=convert_date_to_isoformat)
-        temp_json = json.loads(temp_val_convert)
+            temp_val_convert = json.dumps(temp_val_modified,
+                                          default=convert_date_to_isoformat)
+            temp_json = json.loads(temp_val_convert)
 
-        temp_val_json = custom_ACE_setting_areas(temp_json)
+            temp_val_json = custom_ace_setting_areas(temp_json)
 
-        # creating hash value of metadata
-        hash_value = hashlib.sha512(str(temp_val_json).encode('utf-8')).\
-            hexdigest()
+            # creating hash value of metadata
+            hash_value = hashlib.sha512(str(temp_val_json).encode('utf-8')).\
+                hexdigest()
 
-        if key:
-            store_source_metadata(key['key_value'], key['key_value_hash'],
-                                  hash_value, temp_val_json)
+            if key:
+                store_source_metadata(key['key_value'], key['key_value_hash'],
+                                      hash_value, temp_val_json)
+    else:
+        logger.error("Source metadata dictionary is empty!")
 
 
 class Command(BaseCommand):
