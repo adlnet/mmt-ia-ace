@@ -1,14 +1,10 @@
 
-# Enterprise Course Catalog: OPENLXP-XIA-ACE
+# Modernized Military Transcript: MMT-IA-ACE
 
-The Enterprise Course Catalog (ECC) is one of the three Enterprise Digital Learning Modernization (EDLM) lines of an effort supported by ADL. Today, learner records for Department of Defense (DoD) personnel are stored in disparate locations, along with inconsistent data formats, which complicates the transport, management, and governance of the learner records across and within DoD organizations.  
-
-The goal of the ECC is a learning experience discovery service designed to aggregate metadata describing learning experiences from various internal sources as well as external sources.
-
-ECC system architecture comprises multiple independently deployable components.Each component offers its unique data architecture.This component is one of those Experience Index Agent (XIA) components. XIAs interact with specific XSRs (Experience Schema Services) to extract, transform, and load operations for learning experience metadata.   
+The Modernized Military Transcript (MMT) Indexing Agent ACE follows the [XIA](https://github.com/adlnet/ecc-openlxp-xia) design pattern but indexes mappings from ACE that provide suggestions on academic equivalencies to trainings and occupations.
 
 # Workflows
-The Joint Knowledge Online (ACE) XIA implements six core workflows, as follows:
+The American Council for Education (ACE) IA implements six core workflows, as follows:
 
 1. `Extract`: Pulls pertinent learning experience metadata records from the corresponding Experience Source Repository (XSR).
 
@@ -74,11 +70,11 @@ To run this project, you will need to add the following environment variables to
 
 1. Clone the Github repository:
 
-    https://github.com/OpenLXP/openlxp-xia-ACE.git
+    https://github.com/adlnet/mmt-ia-ACE.git
 
 2. Open terminal at the root directory of the project.
     
-    example: ~/PycharmProjects/openlxp-xia-ace 
+    example: ~/PycharmProjects/mmt-ia-ace 
 
 3. Run command to install all the requirements from requirements.txt 
     
@@ -100,7 +96,7 @@ To run this project, you will need to add the following environment variables to
 
 2. `Add xsr configuration`: Configure Experience Source Repository (XSR):
     
-    `source_file`: Upload the Excel source metadata file of ACE here. 
+    Set what type of data you are indexing (courses or occupations) and then configure the API information to connect to the correct ACE API.  A filename from an S3 bucket can also be supplied to pull data from.
 
 
 #### Note : Validation, transformation & loading are executed by the openlxp-xia package which is imported. The celery task calls the commands from the package and executes it.
@@ -211,12 +207,10 @@ http://localhost:8000/api/xia-workflow
 # Logs
 To check the running of celery tasks, check the logs of application and celery container.
 
-# Documentation
+## Additional Information
+[MMT Wiki can be found here](https://github.com/adlnet/mmt-portal/wiki)
 
-# Troubleshooting
+# License
 
-
-## License
-
- This project uses the [MIT](http://www.apache.org/licenses/LICENSE-2.0) license.
+ This project uses the [Apache](http://www.apache.org/licenses/LICENSE-2.0) license.
   
